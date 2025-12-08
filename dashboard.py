@@ -8,38 +8,47 @@ import numpy as np
 
 # --- 1. CONFIGURATION DE LA PAGE ---
 st.set_page_config(page_title="Value Investing Dashboard", layout="wide")
-
 # --- 2. CSS STABILISÉ (Pour la lisibilité) ---
-# J'ai retiré le ZOOM sur les Dataframes qui cassait l'affichage
 st.markdown("""
     <style>
-    /* Augmentation globale de la police sans casser la structure */
+    /* Augmentation globale de la police */
     html, body, [class*="css"]  {
         font-size: 110% !important; 
     }
     
-    /* Titres */
-    h1 { font-size: 3rem !important; }
-    h2 { font-size: 2.2rem !important; }
-    h3 { font-size: 1.8rem !important; }
+    /* --- MODIFICATION POUR LE TEST DEV --- */
+    /* Tous les titres en ROUGE */
+    h1 { 
+        font-size: 3rem !important; 
+        color: red !important; 
+    }
+    h2 { 
+        font-size: 2.2rem !important; 
+        color: red !important; 
+    }
+    h3 { 
+        font-size: 1.8rem !important; 
+        color: red !important; 
+    }
+    /* ------------------------------------ */
 
-    /* Métriques (Gros chiffres en haut) */
+    /* Métriques */
     [data-testid="stMetricValue"] {
         font-size: 40px !important; 
     }
     
-    /* Espacement général */
+    /* Espacement */
     .block-container {
         padding-top: 2rem;
         padding-bottom: 5rem;
     }
     
-    /* Style pour les inputs */
+    /* Inputs */
     .stSlider, .stSelectbox, .stRadio, .stNumberInput {
         margin-bottom: 20px;
     }
     
-    /* Cartes de statistiques personnalisées */
+    /* Cartes */
     .stat-box { 
         border-top: 3px solid #ddd; 
         padding-top: 10px; 
