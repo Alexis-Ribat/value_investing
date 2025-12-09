@@ -8,33 +8,33 @@ import numpy as np
 
 # --- 1. CONFIGURATION DE LA PAGE ---
 st.set_page_config(page_title="Value Investing Dashboard", layout="wide")
-# --- 2. CSS STABILISÉ ---
+# --- 2. CSS STABILISÉ (Pour la lisibilité) ---
 st.markdown("""
     <style>
-    /* On force un fond sombre pour voir le texte blanc */
-    .stApp {
-        background-color: #0E1117;
-    }
-
     /* Augmentation globale de la police */
     html, body, [class*="css"]  {
-        font-size: 110% !important;
-        color: white !important; /* Texte général en blanc */
+        font-size: 110% !important; 
     }
     
-    /* --- TITRES EN BLANC (Test validé) --- */
-    h1, h2, h3 { 
-        color: white !important; 
+    /* --- MODIFICATION POUR LE TEST DEV --- */
+    /* Tous les titres en ROUGE */
+    h1 { 
+        font-size: 3rem !important; 
+        color: blue !important; 
+    }
+    h2 { 
+        font-size: 2.2rem !important; 
+        color: blue !important; 
+    }
+    h3 { 
+        font-size: 1.8rem !important; 
+        color: blue !important; 
     }
     /* ------------------------------------ */
 
     /* Métriques */
     [data-testid="stMetricValue"] {
-        font-size: 40px !important;
-        color: white !important;
-    }
-    [data-testid="stMetricLabel"] {
-        color: #e0e0e0 !important;
+        font-size: 40px !important; 
     }
     
     /* Espacement */
