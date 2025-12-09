@@ -1,41 +1,31 @@
 version: '3.8'
 
 services:
+  dashboard:
+    build: .
+    container_name: value_investing_${ENV_NAME}
+    restart: always
+    ports:
+      - "${HOST_PORT}:8501"
+    env_file:
+      - .env
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      - db
+
   db:
     image: postgres:15
-    container_name: value_db
+    container_name: postgres_${ENV_NAME}
+    restart: always
     environment:
-      # Docker va injecter les valeurs du fichier .env ici
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - pg_data:/var/lib/postgresql/data
-    restart: always
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  app:
-    build: .
-    container_name: value_dashboard
-    depends_on:
-      db:
-        condition: service_healthy
     ports:
-      - "8501:8501"
-    environment:
-      # On passe simplement la variable DATABASE_URL définie dans le .env
-      DATABASE_URL: ${DATABASE_URL}
-    volumes:
-      - .:/app
-    restart: always
-    # Le fichier .env est chargé automatiquement par docker-compose, 
-    # mais on peut l'expliciter pour plus de clarté (optionnel par défaut)
-    env_file:
-      - .env
+      - "${DB_PORT}:5432"
 
 volumes:
   pg_data:
