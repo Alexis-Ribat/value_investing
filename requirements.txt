@@ -2,7 +2,11 @@ streamlit
 yfinance
 pandas
 sqlalchemy
-psycopg2
+psycopg2-binary
 plotly
 numpy
 matplotlib
+requests
+lxml
+google-generativeai
+requests
