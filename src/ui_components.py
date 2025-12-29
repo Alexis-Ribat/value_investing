@@ -221,16 +221,11 @@ def render_major_shareholders(shareholders_data=None):
             df_display = df_display[['name', 'Nombre d\'Actions', '% Détenu', 'Valuation (€)']]
             df_display.columns = ['Nom', 'Nombre d\'Actions', '% Détenu', 'Valuation (€)']
             
-            # Display with Streamlit dataframe (with right-aligned numbers)
+            # Display with Streamlit dataframe
             st.dataframe(
                 df_display,
                 use_container_width=True,
-                hide_index=True,
-                column_config={
-                    'Nombre d\'Actions': st.column_config.TextColumn(alignment="right"),
-                    '% Détenu': st.column_config.TextColumn(alignment="right"),
-                    'Valuation (€)': st.column_config.TextColumn(alignment="right"),
-                }
+                hide_index=True
             )
     
     # --- RIGHT SIDE: OWNERSHIP DISTRIBUTION CHART ---
