@@ -1,0 +1,229 @@
+/**
+ * Shareholder Component Styles
+ * Dark mode theme with responsive layout
+ */
+
+:root {
+  --bg-primary: #0a0e27;
+  --bg-secondary: #141829;
+  --bg-tertiary: #1a1f3a;
+  --text-primary: #ffffff;
+  --text-secondary: #a8afc7;
+  --border-color: #2a3055;
+  --accent-blue-dark: #1f3a7d;
+  --accent-blue-mid: #2e5da3;
+  --accent-blue-light: #8fb3f5;
+  --red: #ff4b4b;
+  --green: #00cc96;
+}
+
+.shareholder-container {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 24px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
+    Arial, sans-serif;
+  color: var(--text-primary);
+}
+
+.shareholder-container.loading,
+.shareholder-container.error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.shareholder-container.error {
+  color: var(--red);
+}
+
+.section-title {
+  margin: 0 0 24px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.shareholder-content {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 24px;
+}
+
+/* Responsive: Mobile stacking */
+@media (max-width: 1024px) {
+  .shareholder-content {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Columns */
+.column {
+  display: flex;
+  flex-direction: column;
+}
+
+.column-header {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Table Column */
+.column-table {
+}
+
+.table-wrapper {
+  overflow-x: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-primary);
+}
+
+.shareholders-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.shareholders-table thead {
+  background: var(--bg-tertiary);
+  border-bottom: 2px solid var(--border-color);
+  position: sticky;
+  top: 0;
+}
+
+.shareholders-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+}
+
+.shareholders-table th:not(:first-child) {
+  text-align: right;
+}
+
+.shareholders-table tbody tr {
+  border-bottom: 1px solid var(--border-color);
+  transition: background-color 0.2s ease;
+}
+
+.shareholders-table tbody tr:hover {
+  background-color: var(--bg-tertiary);
+}
+
+.shareholders-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.shareholders-table td {
+  padding: 12px 16px;
+  color: var(--text-primary);
+}
+
+.table-row .cell-name {
+  font-weight: 500;
+  color: var(--text-primary);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.table-row .cell-number {
+  text-align: right;
+  font-family: 'Courier New', monospace;
+  color: var(--text-secondary);
+}
+
+.data-updated {
+  margin-top: 12px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+/* Chart Column */
+.column-chart {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.pie-chart-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.pie-chart {
+  width: 100%;
+  max-width: 300px;
+  height: auto;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
+}
+
+.pie-chart-legend {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--bg-tertiary);
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.legend-value {
+  margin-left: auto;
+  color: var(--text-secondary);
+  font-family: 'Courier New', monospace;
+  font-weight: 500;
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .shareholders-table tbody tr {
+    transition: none;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: more) {
+  .shareholders-table th {
+    border-bottom-width: 3px;
+  }
+
+  .shareholders-table tbody tr {
+    border-bottom-width: 2px;
+  }
+}
