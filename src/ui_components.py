@@ -1,6 +1,7 @@
 import plotly.graph_objects as go
 import pandas as pd
 import streamlit as st
+import yfinance as yf
 
 def render_profitability_chart(df):
     """Renders the 5-year profitability trend chart."""
@@ -186,18 +187,101 @@ MOCK_SHAREHOLDERS_DATA = {
     ]
 }
 
-def render_major_shareholders(shareholders_data=None):
+@st.cache_data(ttl=86400)
+def get_shareholders_from_yahoo(ticker):
+    """
+    Fetches shareholder data from Yahoo Finance.
+    Returns formatted shareholders data or None if unavailable.
+    """
+    try:
+        stock = yf.Ticker(ticker)
+        info = stock.info
+        
+        # Try to get major holders from the info dict
+        # Yahoo Finance may have 'major_holders' or similar data
+        holders_data = stock.major_holders if hasattr(stock, 'major_holders') else None
+        
+        if holders_data is not None and not holders_data.empty:
+            # Process major_holders dataframe
+            shareholders = []
+            total_valuation = 0
+            
+            try:
+                # Try to get current stock price for valuation
+                price = info.get('currentPrice', 0) or info.get('regularMarketPrice', 0) or 0
+            except:
+                price = 0
+            
+            for idx, row in holders_data.iterrows():
+                try:
+                    # major_holders format: [Holder Name, Shares Held, % Out, Value Held]
+                    name = row[0] if len(row) > 0 else "Unknown"
+                    shares = int(row[1].replace(',', '')) if len(row) > 1 and isinstance(row[1], str) else 0
+                    percentage = float(row[2].replace('%', '')) if len(row) > 2 and isinstance(row[2], str) else 0
+                    
+                    # Calculate valuation
+                    valuation = shares * price if price > 0 else 0
+                    
+                    shareholders.append({
+                        "name": name,
+                        "shares": shares,
+                        "percentage": percentage,
+                        "valuation_usd": valuation
+                    })
+                    total_valuation += valuation
+                except:
+                    continue
+            
+            # Build distribution by type (simplified categorization)
+            distribution_by_type = []
+            if shareholders:
+                for shareholder in shareholders[:3]:  # Top 3 holders
+                    distribution_by_type.append({
+                        "label": shareholder["name"][:30],  # Truncate long names
+                        "value": shareholder["percentage"],
+                        "color": ["#1f3a7d", "#2e5da3", "#4a90e2"][len(distribution_by_type)]
+                    })
+                
+                # Add remaining as "Others"
+                remaining_pct = 100 - sum([h["percentage"] for h in shareholders])
+                if remaining_pct > 0:
+                    distribution_by_type.append({
+                        "label": "Others",
+                        "value": remaining_pct,
+                        "color": "#8fb3f5"
+                    })
+            
+            if shareholders:
+                return {
+                    "shareholders": shareholders,
+                    "distribution_by_type": distribution_by_type,
+                    "currency": info.get('currency', 'USD')
+                }
+    except:
+        pass
+    
+    return None
+
+
+def render_major_shareholders(ticker, shareholders_data=None):
     """
     Renders a Major Shareholders section with responsive layout.
     Left: Table of shareholders
     Right: Donut chart of ownership distribution
     
     Args:
+        ticker: Stock ticker symbol
         shareholders_data: Dict with 'shareholders' list and 'distribution_by_type' list.
-                          If None, uses MOCK_SHAREHOLDERS_DATA
+                          If None, fetches from Yahoo Finance
     """
+    # Fetch data from Yahoo Finance if not provided
     if shareholders_data is None:
-        shareholders_data = MOCK_SHAREHOLDERS_DATA
+        shareholders_data = get_shareholders_from_yahoo(ticker)
+    
+    # If still no data, show message and return
+    if shareholders_data is None:
+        st.info("📊 Shareholder data not available for this stock.")
+        return
     
     # Create two columns for responsive layout
     col_table, col_chart = st.columns([1.2, 1])
@@ -215,11 +299,22 @@ def render_major_shareholders(shareholders_data=None):
             df_display = df_shareholders.copy()
             df_display['Nombre d\'Actions'] = df_display['shares'].apply(lambda x: f"{x:,.0f}")
             df_display['% Détenu'] = df_display['percentage'].apply(lambda x: f"{x:.2f}%")
-            df_display['Valuation (€)'] = df_display['valuation_eur'].apply(lambda x: f"€{x/1e6:.1f}M" if x >= 1e6 else f"€{x/1e3:.0f}K")
+            
+            # Use valuation_usd if available, otherwise valuation_eur (for backward compatibility with mock data)
+            if 'valuation_usd' in df_display.columns:
+                currency = shareholders_data.get('currency', 'USD')
+                symbol = '$' if currency == 'USD' else '€'
+                df_display['Valuation'] = df_display['valuation_usd'].apply(lambda x: f"{symbol}{x/1e6:.1f}M" if x >= 1e6 else f"{symbol}{x/1e3:.0f}K")
+            else:
+                df_display['Valuation (€)'] = df_display['valuation_eur'].apply(lambda x: f"€{x/1e6:.1f}M" if x >= 1e6 else f"€{x/1e3:.0f}K")
             
             # Select columns to display
-            df_display = df_display[['name', 'Nombre d\'Actions', '% Détenu', 'Valuation (€)']]
-            df_display.columns = ['Nom', 'Nombre d\'Actions', '% Détenu', 'Valuation (€)']
+            if 'Valuation' in df_display.columns:
+                df_display = df_display[['name', 'Nombre d\'Actions', '% Détenu', 'Valuation']]
+                df_display.columns = ['Nom', 'Nombre d\'Actions', '% Détenu', 'Valuation']
+            else:
+                df_display = df_display[['name', 'Nombre d\'Actions', '% Détenu', 'Valuation (€)']]
+                df_display.columns = ['Nom', 'Nombre d\'Actions', '% Détenu', 'Valuation (€)']
             
             # Display with Streamlit dataframe
             st.dataframe(

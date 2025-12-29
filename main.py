@@ -271,7 +271,7 @@ else:
         st.subheader("Allocation du Capital (Skin in the Game)")
         
         # Render Major Shareholders Section
-        render_major_shareholders()
+        render_major_shareholders(current_ticker)
 
     # TAB 3: TRENDS & DATA
     with tab3:
