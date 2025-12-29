@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 from src.database import init_db
 from src.data_provider import fetch_live_data, search_yahoo_candidates
 from src.ai_engine import resolve_ticker_with_ai_cached, get_company_profile_french, generate_ai_insight, get_revenue_split_ai
-from src.ui_components import render_profitability_chart, render_capital_allocation_chart, render_revenue_donut
+from src.ui_components import render_profitability_chart, render_capital_allocation_chart, render_revenue_donut, render_major_shareholders
 from src.valuation import calculate_dcf, calculate_piotroski_f_score, calculate_reverse_dcf
 from src.sec_provider import get_sec_data_rust
 # AJOUTEZ CETTE LIGNE CI-DESSOUS :
@@ -269,6 +269,9 @@ else:
     # TAB 2: MANAGEMENT (Buybacks & Dividends)
     with tab2:
         st.subheader("Allocation du Capital (Skin in the Game)")
+        
+        # Render Major Shareholders Section
+        render_major_shareholders()
 
     # TAB 3: TRENDS & DATA
     with tab3:
