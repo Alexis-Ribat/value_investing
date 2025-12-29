@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 from src.database import init_db
 from src.data_provider import fetch_live_data, search_yahoo_candidates
 from src.ai_engine import resolve_ticker_with_ai_cached, get_company_profile_french, generate_ai_insight, get_revenue_split_ai
-from src.ui_components import render_profitability_chart, render_capital_allocation_chart, render_revenue_donut, render_major_shareholders
+from src.ui_components import render_profitability_chart, render_capital_allocation_chart, render_revenue_donut, render_governance_component
 from src.valuation import calculate_dcf, calculate_piotroski_f_score, calculate_reverse_dcf
 from src.sec_provider import get_sec_data_rust
 # AJOUTEZ CETTE LIGNE CI-DESSOUS :
@@ -266,12 +266,37 @@ else:
             metrics_df['Value'] = metrics_df.apply(format_val, axis=1)
             st.dataframe(metrics_df, use_container_width=True, hide_index=True)
 
-    # TAB 2: MANAGEMENT (Buybacks & Dividends)
+    # TAB 2: MANAGEMENT (Governance)
     with tab2:
-        st.subheader("Allocation du Capital (Skin in the Game)")
-        
-        # Render Major Shareholders Section
-        render_major_shareholders(current_ticker)
+       st.subheader("Allocation du Capital (Skin in the Game)")
+       
+       # Render Governance Component with real Yahoo Finance data
+       render_governance_component(current_ticker)
+       
+       # Show capital allocation metrics as additional info
+       if True:
+            st.markdown("---")
+            # Calcul Buyback Yield
+            shares_now = df['Shares_Outstanding'].iloc[-1]
+            shares_last_year = df['Shares_Outstanding'].iloc[-2] if len(df) > 1 else shares_now
+            buyback_yield = ((shares_last_year - shares_now) / shares_last_year) * 100
+            
+            c_m1, c_m2 = st.columns(2)
+            c_m1.metric(
+                "Buyback Yield (1 an)", 
+                f"{buyback_yield:.2f}%", 
+                delta="Accretive (Bon)" if buyback_yield > 0 else "Dilutif (Mauvais)",
+                help="Positif = L'entreprise rachete ses actions."
+            )
+            
+            try:
+                div_yield = yf.Ticker(current_ticker).info.get('dividendYield', 0) * 100
+                c_m2.metric("Dividend Yield", f"{div_yield:.2f}%")
+            except:
+                c_m2.metric("Dividend Yield", "N/A")
+            
+            st.plotly_chart(render_capital_allocation_chart(df), use_container_width=True)
+            st.caption("💡 **Conseil Value :** Barres vertes + Ligne blanche montante = Création de valeur pour l'actionnaire.")
 
     # TAB 3: TRENDS & DATA
     with tab3:

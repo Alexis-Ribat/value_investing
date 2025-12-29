@@ -138,228 +138,141 @@ def render_revenue_donut(data):
     
     return fig
 
-# --- MOCK DATA FOR MAJOR SHAREHOLDERS ---
-# Replace this with API call to fetch real shareholder data
-MOCK_SHAREHOLDERS_DATA = {
-    "shareholders": [
-        {
-            "name": "Christian Dior SE",
-            "shares": 209504613,
-            "percentage": 42.1,
-            "valuation_eur": 155000000  # Mock value in EUR
-        },
-        {
-            "name": "Arnault Family",
-            "shares": 35669321,
-            "percentage": 7.2,
-            "valuation_eur": 26307000
-        },
-        {
-            "name": "OFI Invest Asset Management SA",
-            "shares": 697528,
-            "percentage": 0.14,
-            "valuation_eur": 514000
-        },
-        {
-            "name": "Rothschild & Co Asset Management",
-            "shares": 426829,
-            "percentage": 0.086,
-            "valuation_eur": 315000
-        },
-        {
-            "name": "State Street Global Advisors",
-            "shares": 369770,
-            "percentage": 0.074,
-            "valuation_eur": 273000
-        },
-        {
-            "name": "Float/Unknown",
-            "shares": 300000000,
-            "percentage": 48.3,
-            "valuation_eur": 220000000
-        }
-    ],
-    "distribution_by_type": [
-        {"label": "Christian Dior SE", "value": 42.1, "color": "#1f3a7d"},
-        {"label": "Individuals/Family", "value": 7.2, "color": "#2e5da3"},
-        {"label": "Institutional Investors", "value": 2.18, "color": "#4a90e2"},
-        {"label": "Float/Unknown", "value": 48.3, "color": "#8fb3f5"}
-    ]
-}
 
 @st.cache_data(ttl=86400)
-def get_shareholders_from_yahoo(ticker):
+def get_governance_data(ticker):
     """
-    Fetches shareholder data from Yahoo Finance.
-    Returns formatted shareholders data or None if unavailable.
+    Fetch governance data from Yahoo Finance.
+    Returns insiders %, institutions %, top institutional holders, and insider roster.
     """
     try:
         stock = yf.Ticker(ticker)
         info = stock.info
         
-        # Try to get major holders from the info dict
-        # Yahoo Finance may have 'major_holders' or similar data
-        holders_data = stock.major_holders if hasattr(stock, 'major_holders') else None
+        # Get major holders breakdown
+        insiders_pct = info.get('heldPercentInsiders', 0) or 0
+        institutions_pct = info.get('heldPercentInstitutions', 0) or 0
+        public_float_pct = 100 - insiders_pct - institutions_pct
         
-        if holders_data is not None and not holders_data.empty:
-            # Process major_holders dataframe
-            shareholders = []
-            total_valuation = 0
-            
-            try:
-                # Try to get current stock price for valuation
-                price = info.get('currentPrice', 0) or info.get('regularMarketPrice', 0) or 0
-            except:
-                price = 0
-            
-            for idx, row in holders_data.iterrows():
-                try:
-                    # major_holders format: [Holder Name, Shares Held, % Out, Value Held]
-                    name = row[0] if len(row) > 0 else "Unknown"
-                    shares = int(row[1].replace(',', '')) if len(row) > 1 and isinstance(row[1], str) else 0
-                    percentage = float(row[2].replace('%', '')) if len(row) > 2 and isinstance(row[2], str) else 0
+        # Get top institutional holders
+        institutional_holders = []
+        try:
+            if hasattr(stock, 'institutional_holders') and stock.institutional_holders is not None:
+                df_inst = stock.institutional_holders
+                for idx, row in df_inst.head(5).iterrows():
+                    holder_name = row['Holder']
+                    shares = row['Shares'] if 'Shares' in df_inst.columns else 0
+                    pct_held = row['% Out'] if '% Out' in df_inst.columns else 0
                     
-                    # Calculate valuation
-                    valuation = shares * price if price > 0 else 0
-                    
-                    shareholders.append({
-                        "name": name,
-                        "shares": shares,
-                        "percentage": percentage,
-                        "valuation_usd": valuation
+                    institutional_holders.append({
+                        'holder': holder_name,
+                        'shares': int(shares) if shares else 0,
+                        'pct_held': float(pct_held) if pct_held else 0
                     })
-                    total_valuation += valuation
-                except:
-                    continue
-            
-            # Build distribution by type (simplified categorization)
-            distribution_by_type = []
-            if shareholders:
-                for shareholder in shareholders[:3]:  # Top 3 holders
-                    distribution_by_type.append({
-                        "label": shareholder["name"][:30],  # Truncate long names
-                        "value": shareholder["percentage"],
-                        "color": ["#1f3a7d", "#2e5da3", "#4a90e2"][len(distribution_by_type)]
+        except:
+            pass
+        
+        # Get insider roster
+        insider_roster = []
+        try:
+            if hasattr(stock, 'insider_roster') and stock.insider_roster is not None:
+                df_insiders = stock.insider_roster
+                for idx, row in df_insiders.iterrows():
+                    insider_roster.append({
+                        'name': row.get('Name', 'Unknown'),
+                        'position': row.get('Position', 'Unknown'),
+                        'shares_held': int(row.get('Shares', 0)) if row.get('Shares') else 0
                     })
-                
-                # Add remaining as "Others"
-                remaining_pct = 100 - sum([h["percentage"] for h in shareholders])
-                if remaining_pct > 0:
-                    distribution_by_type.append({
-                        "label": "Others",
-                        "value": remaining_pct,
-                        "color": "#8fb3f5"
-                    })
-            
-            if shareholders:
-                return {
-                    "shareholders": shareholders,
-                    "distribution_by_type": distribution_by_type,
-                    "currency": info.get('currency', 'USD')
-                }
-    except:
-        pass
-    
-    return None
+        except:
+            pass
+        
+        return {
+            'insiders_pct': insiders_pct,
+            'institutions_pct': institutions_pct,
+            'public_float_pct': public_float_pct,
+            'institutional_holders': institutional_holders,
+            'insider_roster': insider_roster
+        }
+    except Exception as e:
+        print(f"Error fetching governance data: {e}")
+        return None
 
 
-def render_major_shareholders(ticker, shareholders_data=None):
+def render_governance_component(ticker):
     """
-    Renders a Major Shareholders section with responsive layout.
-    Left: Table of shareholders
-    Right: Donut chart of ownership distribution
-    
-    Args:
-        ticker: Stock ticker symbol
-        shareholders_data: Dict with 'shareholders' list and 'distribution_by_type' list.
-                          If None, fetches from Yahoo Finance
+    Render governance dashboard with 3 zones:
+    Zone 1: Ownership breakdown (Insiders %, Institutions %, Public Float %)
+    Zone 2: Top 5 institutional holders (horizontal bars)
+    Zone 3: Insider roster table sorted by shares held
     """
-    # Fetch data from Yahoo Finance if not provided
-    if shareholders_data is None:
-        shareholders_data = get_shareholders_from_yahoo(ticker)
+    gov_data = get_governance_data(ticker)
     
-    # If still no data, show message and return
-    if shareholders_data is None:
-        st.info("📊 Shareholder data not available for this stock.")
+    if gov_data is None:
+        st.warning("Unable to fetch governance data for this stock.")
         return
     
-    # Create two columns for responsive layout
-    col_table, col_chart = st.columns([1.2, 1])
+    # Zone 1: Ownership Breakdown Metrics
+    st.subheader("Ownership Breakdown")
     
-    # --- LEFT SIDE: SHAREHOLDERS TABLE ---
-    with col_table:
-        st.subheader("Principal Actionnaires")
-        
-        # Convert to DataFrame for clean display
-        shareholders_list = shareholders_data.get("shareholders", [])
-        if shareholders_list:
-            df_shareholders = pd.DataFrame(shareholders_list)
-            
-            # Format the display dataframe
-            df_display = df_shareholders.copy()
-            df_display['Nombre d\'Actions'] = df_display['shares'].apply(lambda x: f"{x:,.0f}")
-            df_display['% Détenu'] = df_display['percentage'].apply(lambda x: f"{x:.2f}%")
-            
-            # Use valuation_usd if available, otherwise valuation_eur (for backward compatibility with mock data)
-            if 'valuation_usd' in df_display.columns:
-                currency = shareholders_data.get('currency', 'USD')
-                symbol = '$' if currency == 'USD' else '€'
-                df_display['Valuation'] = df_display['valuation_usd'].apply(lambda x: f"{symbol}{x/1e6:.1f}M" if x >= 1e6 else f"{symbol}{x/1e3:.0f}K")
-            else:
-                df_display['Valuation (€)'] = df_display['valuation_eur'].apply(lambda x: f"€{x/1e6:.1f}M" if x >= 1e6 else f"€{x/1e3:.0f}K")
-            
-            # Select columns to display
-            if 'Valuation' in df_display.columns:
-                df_display = df_display[['name', 'Nombre d\'Actions', '% Détenu', 'Valuation']]
-                df_display.columns = ['Nom', 'Nombre d\'Actions', '% Détenu', 'Valuation']
-            else:
-                df_display = df_display[['name', 'Nombre d\'Actions', '% Détenu', 'Valuation (€)']]
-                df_display.columns = ['Nom', 'Nombre d\'Actions', '% Détenu', 'Valuation (€)']
-            
-            # Display with Streamlit dataframe
-            st.dataframe(
-                df_display,
-                use_container_width=True,
-                hide_index=True
-            )
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Insiders", f"{gov_data['insiders_pct']:.2f}%", 
+                help="Percentage owned by company insiders")
+    col2.metric("Institutions", f"{gov_data['institutions_pct']:.2f}%",
+                help="Percentage owned by institutional investors")
+    col3.metric("Public Float", f"{gov_data['public_float_pct']:.2f}%",
+                help="Percentage available to public investors")
     
-    # --- RIGHT SIDE: OWNERSHIP DISTRIBUTION CHART ---
-    with col_chart:
-        st.subheader("Répartition")
+    st.divider()
+    
+    # Zone 2: Top 5 Institutional Holders
+    if gov_data['institutional_holders']:
+        st.subheader("Top 5 Institutional Holders")
         
-        distribution_data = shareholders_data.get("distribution_by_type", [])
-        if distribution_data:
-            labels = [item['label'] for item in distribution_data]
-            values = [item['value'] for item in distribution_data]
-            colors = [item.get('color', '#636EFA') for item in distribution_data]
-            
-            fig = go.Figure(data=[go.Pie(
-                labels=labels,
-                values=values,
-                hole=0.4,  # Donut chart
-                marker=dict(colors=colors, line=dict(color='rgba(0,0,0,0)', width=2)),
-                textposition='inside',
-                textinfo='label+percent',
-                hovertemplate='<b>%{label}</b><br>%{value:.1f}%<extra></extra>'
-            )])
-            
-            fig.update_layout(
-                height=400,
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color='white', size=12),
-                margin=dict(t=40, b=20, l=20, r=20),
-                showlegend=True,
-                legend=dict(
-                    orientation="v",
-                    yanchor="middle",
-                    y=0.5,
-                    xanchor="left",
-                    x=1.0,
-                    bgcolor='rgba(0,0,0,0)',
-                    bordercolor='rgba(255,255,255,0.2)',
-                    borderwidth=1
-                )
+        # Create horizontal bar chart
+        df_inst = pd.DataFrame(gov_data['institutional_holders'])
+        
+        fig = go.Figure(data=[
+            go.Bar(
+                y=df_inst['holder'].head(5),
+                x=df_inst['pct_held'].head(5),
+                orientation='h',
+                marker=dict(color='#2e5da3'),
+                text=df_inst['pct_held'].head(5).apply(lambda x: f'{x:.2f}%'),
+                textposition='auto',
             )
-            
-            st.plotly_chart(fig, use_container_width=True)
+        ])
+        
+        fig.update_layout(
+            title='',
+            xaxis_title='% Held',
+            yaxis_title='Holder',
+            height=280,
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            font=dict(color='white'),
+            margin=dict(l=250, r=20, t=20, b=20),
+            showlegend=False
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("No institutional holders data available for this stock.")
+    
+    st.divider()
+    
+    # Zone 3: Insider Roster Table
+    if gov_data['insider_roster']:
+        st.subheader("Management & Insiders")
+        
+        # Sort by shares held (descending)
+        df_insiders = pd.DataFrame(gov_data['insider_roster'])
+        df_insiders_sorted = df_insiders.sort_values('shares_held', ascending=False)
+        
+        # Format for display
+        df_display = df_insiders_sorted[['name', 'position', 'shares_held']].copy()
+        df_display.columns = ['Name', 'Position', 'Shares Held']
+        df_display['Shares Held'] = df_display['Shares Held'].apply(lambda x: f"{int(x):,}")
+        
+        st.dataframe(df_display, use_container_width=True, hide_index=True)
+    else:
+        st.info("No insider roster data available for this stock.")
