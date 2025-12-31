@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 from src.database import init_db
 from src.data_provider import fetch_live_data, search_yahoo_candidates
 from src.ai_engine import resolve_ticker_with_ai_cached, get_company_profile_french, generate_ai_insight, get_revenue_split_ai
-from src.ui_components import render_profitability_chart, render_capital_allocation_chart, render_revenue_donut, render_governance_component
+from src.ui_components import render_profitability_chart, render_revenue_donut, render_governance_component
 from src.valuation import calculate_dcf, calculate_piotroski_f_score, calculate_reverse_dcf
 from src.sec_provider import get_sec_data_rust
 # AJOUTEZ CETTE LIGNE CI-DESSOUS :
@@ -79,10 +79,10 @@ st.sidebar.text_input("Company or Ticker", key="search_widget", on_change=on_sea
 results_to_display = []
 
 if st.session_state.search_results:
-    st.sidebar.caption("Résultats de recherche :")
+    st.sidebar.caption("Search Results:")
     results_to_display = st.session_state.search_results
 else:
-    st.sidebar.caption("⭐ Favoris / Suggestions :")
+    st.sidebar.caption("⭐ Favorites / Suggestions:")
     # Votre liste personnalisée (J'ai corrigé les tickers pour qu'ils marchent sur Yahoo)
     results_to_display = [
         {'symbol': 'AAPL', 'name': 'Apple Inc.', 'label': '🍎 Apple'},
@@ -111,9 +111,6 @@ for item in results_to_display:
         on_click=select_ticker_callback, 
         args=(item['symbol'], item['name'])
     )
-
-# --- MAIN DISPLAY ---
-# (La suite de votre code reste inchangée...)
 
 # --- MAIN DISPLAY ---
 df = st.session_state.data_cache
@@ -197,7 +194,7 @@ else:
 
     # --- TABS ORGANIZATION ---
     tab1, tab2, tab3, tab4, tab5 = st.tabs(["Valuation", "Management & Capital", "Trends & Data", "AI Analyst", "📝 Full Report"])
-    # TAB 1: VALUATION
+    
     # TAB 1: VALUATION
     with tab1:
         st.subheader("Fair Value Calculator (DCF)")
@@ -206,14 +203,14 @@ else:
         divider = 1e6 
         
         with c1:
-            st.markdown("#### 1. Vos Hypothèses")
+            st.markdown("#### 1. Your Assumptions")
             fcf_start = st.number_input("Starting FCF (M)", value=float(last['FCF']/divider)) * divider
             user_growth = st.slider("Growth 5y (%)", -5.0, 25.0, 5.0, key="g5_slider")
             wacc = st.slider("WACC (%)", 5.0, 15.0, 10.0, key="wacc_slider")
             gt = st.slider("Terminal Growth (%)", 0.0, 5.0, 2.0, key="gt_slider")
 
         with c2:
-            st.markdown("#### 2. Résultats")
+            st.markdown("#### 2. Results")
             fv = calculate_dcf(fcf_start, user_growth, gt, wacc, shares, nd)
             
             if fcf_start > 0 and price > 0:
@@ -241,8 +238,8 @@ else:
 
             st.markdown("---")
             col_rev1, col_rev2 = st.columns(2)
-            col_rev1.metric("Prix Actuel", f"{price:.2f} {cur}")
-            col_rev2.metric("Croissance Implicite", f"{implied_growth:.1f}%", delta=f"{user_growth - implied_growth:.1f}% vs Est.")
+            col_rev1.metric("Current Price", f"{price:.2f} {cur}")
+            col_rev2.metric("Implied Growth", f"{implied_growth:.1f}%", delta=f"{user_growth - implied_growth:.1f}% vs Est.")
 
         with st.expander("See Piotroski Score Details"):
             st.write(f_details)
@@ -268,35 +265,12 @@ else:
 
     # TAB 2: MANAGEMENT (Governance)
     with tab2:
-       st.subheader("Allocation du Capital (Skin in the Game)")
+       st.subheader("Capital Allocation (Skin in the Game)")
        
        # Render Governance Component with real Yahoo Finance data
        render_governance_component(current_ticker)
        
-       # Show capital allocation metrics as additional info
-       if True:
-            st.markdown("---")
-            # Calcul Buyback Yield
-            shares_now = df['Shares_Outstanding'].iloc[-1]
-            shares_last_year = df['Shares_Outstanding'].iloc[-2] if len(df) > 1 else shares_now
-            buyback_yield = ((shares_last_year - shares_now) / shares_last_year) * 100
-            
-            c_m1, c_m2 = st.columns(2)
-            c_m1.metric(
-                "Buyback Yield (1 an)", 
-                f"{buyback_yield:.2f}%", 
-                delta="Accretive (Bon)" if buyback_yield > 0 else "Dilutif (Mauvais)",
-                help="Positif = L'entreprise rachete ses actions."
-            )
-            
-            try:
-                div_yield = yf.Ticker(current_ticker).info.get('dividendYield', 0) * 100
-                c_m2.metric("Dividend Yield", f"{div_yield:.2f}%")
-            except:
-                c_m2.metric("Dividend Yield", "N/A")
-            
-            st.plotly_chart(render_capital_allocation_chart(df), use_container_width=True)
-            st.caption("💡 **Conseil Value :** Barres vertes + Ligne blanche montante = Création de valeur pour l'actionnaire.")
+       # --- PARTIE BUYBACK YIELD SUPPRIMÉE ---
 
     # TAB 3: TRENDS & DATA
     with tab3:
@@ -307,7 +281,43 @@ else:
         if split_data:
             c_chart, c_txt = st.columns([2, 1])
             with c_chart:
-                st.plotly_chart(render_revenue_donut(split_data), use_container_width=True)
+                # --- CODE PERSONNALISÉ POUR LE DONUT SOMBRE ---
+                labels = [item.get('label', 'Unknown') for item in split_data]
+                values = [item.get('value', 0) for item in split_data]
+
+                # Palette de couleurs "Sombres"
+                dark_colors = ['#1A5276', '#922B21', '#117A65', '#6C3483', '#B9770E', '#283747']
+
+                fig = go.Figure(data=[go.Pie(
+                    labels=labels, 
+                    values=values, 
+                    hole=.4, 
+                    marker=dict(colors=dark_colors, line=dict(color='white', width=1)),
+                    textinfo='label+percent',
+                    # 1. TAILLE RÉDUITE (12 au lieu de 14)
+                    textfont=dict(size=12, color='white', family="Arial Black"),
+                    textposition='inside',
+                    # 2. FORCE LE TEXTE À RESTER DROIT (HORIZONTAL)
+                    insidetextorientation='horizontal' 
+                )])
+
+                fig.update_layout(
+                    title=dict(
+                        text="Revenue Breakdown",
+                        x=0.5,
+                        xanchor='center',
+                        yanchor='top',
+                        font=dict(size=18, color='white')
+                    ),
+                    showlegend=False,
+                    margin=dict(t=50, b=20, l=20, r=20),
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    paper_bgcolor='rgba(0,0,0,0)'
+                )
+                
+                st.plotly_chart(fig, use_container_width=True)
+                # ---------------------------------------------
+
             with c_txt:
                 st.write("**Details:**")
                 seg_df = pd.DataFrame(split_data)
@@ -315,8 +325,6 @@ else:
                 st.dataframe(seg_df, use_container_width=True, hide_index=True)
         else:
             st.info("Revenue segmentation unavailable.")
-
-        st.divider()
         
         # --- 2. Profitability Charts ---
         st.subheader("Profitability Trends")
@@ -376,7 +384,7 @@ else:
                     plot_years = sorted(list(all_years))
                     
                     if not sorted_years:
-                        st.warning("Aucune année complète trouvée.")
+                        st.warning("No complete year found.")
                         st.stop()
 
                     # --- 2. ALGORITHME DE CORRECTION DES SPLITS ---
@@ -525,8 +533,8 @@ else:
                     metrics_growth_config = [
                         ("Revenue", "Revenue"),
                         ("EPS Diluted (Calc)", "Diluted EPS"),
-                        ("True FCF / Share", "Vrai FCF/Share"),
-                        ("Shares Outstanding", "Evolution du nb d'actions")
+                        ("True FCF / Share", "True FCF/Share"),
+                        ("Shares Outstanding", "Shares Outstanding Evolution")
                     ]
                     
                     rows_growth = []
@@ -566,7 +574,7 @@ else:
                     
                     # CONFIGURATION : On a changé le format "{:.0f}" en "{:.2f}" pour Revenue et Net Income
                     charts_config = [
-                        ("Revenue", "Revenue (Billions $)", 1e9, "#1f77b4", "{:.2f}"),     # <--- 2 décimales (ex: 1.28)
+                        ("Revenue", "Revenue (Billions $)", 1e9, "#1f77b4", "{:.2f}"),      # <--- 2 décimales (ex: 1.28)
                         ("Net Income", "Net Income (Billions $)", 1e9, "#2ca02c", "{:.2f}"),  # <--- 2 décimales
                         ("EPS Diluted (Calc)", "EPS Diluted ($)", 1, "#00CC96", "{:.2f}"),
                         ("Shares Outstanding", "Shares Outstanding (Millions)", 1e6, "#EF553B", "{:.0f}"),
@@ -652,33 +660,31 @@ else:
                                 with c_chart2: st.plotly_chart(fig, use_container_width=True)
 
                 else:
-                    st.info("Données financières non disponibles dans le JSON Rust.")
+                    st.info("Financial data not available in Rust JSON.")
             else:
-                st.warning("Données non trouvées.")
+                st.warning("Data not found.")
         else:
-            st.info("Actions US uniquement.")
+            st.info("US Stocks only.")
             
-        # TAB 4: AI ANALYST & SENTIMENT
-    # TAB 4: AI ANALYST & SENTIMENT
     # TAB 4: AI ANALYST & SENTIMENT
     with tab4:
         st.subheader("🤖 AI Sentiment & Earnings Analysis")
         
         # 1. Selecteur de mode avec KEY unique
         analysis_mode = st.radio(
-            "Source des données :", 
-            ["📰 Dernières News (Auto)", "📝 Transcription Complète (Manuel)"], 
+            "Data Source:", 
+            ["📰 Latest News (Auto)", "📝 Full Transcript (Manual)"], 
             horizontal=True,
             key="ai_mode_selector"  # <--- KEY IMPORTANTE
         )
         
         # --- MODE AUTOMATIQUE (GOOGLE NEWS) ---
-        if analysis_mode == "📰 Dernières News (Auto)":
-            st.caption("Scan du flux Google News Finance pour analyser le sentiment réel.")
+        if analysis_mode == "📰 Latest News (Auto)":
+            st.caption("Scanning Google News Finance for real sentiment analysis.")
             
             # Bouton avec KEY unique
-            if st.button("🔍 Scanner les News & Analyser", key="btn_scan_news"): # <--- KEY AJOUTÉE
-                with st.spinner(f"Récupération et analyse en cours pour {current_ticker}..."):
+            if st.button("🔍 Scan News & Analyze", key="btn_scan_news"): # <--- KEY AJOUTÉE
+                with st.spinner(f"Fetching and analyzing for {current_ticker}..."):
                     try:
                         # 1. Récupération Google News RSS
                         url = f"https://news.google.com/rss/search?q={current_ticker}+stock+finance&hl=en-US&gl=US&ceid=US:en"
@@ -704,30 +710,30 @@ else:
                             
                             # 3. STOCKAGE DANS LA SESSION
                             st.session_state.ai_analysis_result = ai_response
-                            st.success(f"{count} articles analysés avec succès.")
+                            st.success(f"{count} articles successfully analyzed.")
                             
                         else:
-                            st.error("Aucune news trouvée pour ce ticker.")
+                            st.error("No news found for this ticker.")
                             
                     except Exception as e:
-                        st.error(f"Erreur technique : {e}")
+                        st.error(f"Technical error: {e}")
 
         # --- MODE MANUEL ---
         else:
-            st.caption("Copiez-collez ici la transcription d'un Earnings Call.")
-            raw_transcript = st.text_area("Collez le texte ici", height=300, key="txt_manual_input") # Key ajoutée aussi ici
+            st.caption("Copy-paste an Earnings Call transcript here.")
+            raw_transcript = st.text_area("Paste text here", height=300, key="txt_manual_input") # Key ajoutée aussi ici
             
             # Bouton avec KEY unique
-            if st.button("🧠 Analyser la Transcription", key="btn_analyze_transcript"): # <--- KEY AJOUTÉE
+            if st.button("🧠 Analyze Transcript", key="btn_analyze_transcript"): # <--- KEY AJOUTÉE
                 if len(raw_transcript) > 100:
-                    with st.spinner("Analyse psychologique en cours..."):
+                    with st.spinner("Psychological analysis in progress..."):
                         from src.ai_engine import analyze_earnings_sentiment
                         ai_response = analyze_earnings_sentiment(current_ticker, raw_transcript)
                         
                         # Stockage Session
                         st.session_state.ai_analysis_result = ai_response
                 else:
-                    st.warning("Texte trop court.")
+                    st.warning("Text too short.")
 
         # --- AFFICHAGE DU RÉSULTAT (PERSISTANT) ---
         st.markdown("---")
@@ -736,27 +742,27 @@ else:
                 st.markdown(st.session_state.ai_analysis_result)
                 
             # Bouton avec KEY unique
-            if st.button("Effacer l'analyse", key="btn_clear_analysis"): # <--- KEY AJOUTÉE
+            if st.button("Clear analysis", key="btn_clear_analysis"): # <--- KEY AJOUTÉE
                 st.session_state.ai_analysis_result = None
                 st.rerun()
             
 # TAB 5: FULL REPORT GENERATOR
     with tab5:
-        st.subheader("📝 Générateur de Rapport d'Investissement Complet")
-        st.caption("Ce module utilise le fichier `prompt.txt` pour générer une thèse d'investissement détaillée.")
+        st.subheader("📝 Full Investment Report Generator")
+        st.caption("This module uses the 'prompt.txt' file to generate a detailed investment thesis.")
 
         # 1. Lecture du fichier prompt.txt
         prompt_content = ""
         try:
             with open("prompt.txt", "r", encoding="utf-8") as f:
                 prompt_content = f.read()
-            st.success("✅ Fichier `prompt.txt` chargé avec succès.")
+            st.success("✅ 'prompt.txt' file loaded successfully.")
             
-            with st.expander("Voir le modèle de prompt utilisé"):
+            with st.expander("View used prompt template"):
                 st.text(prompt_content)
                 
         except FileNotFoundError:
-            st.error("❌ Fichier `prompt.txt` introuvable à la racine.")
+            st.error("❌ 'prompt.txt' file not found at root.")
             st.stop()
 
         # 2. Préparation des données financières (String)
@@ -776,11 +782,11 @@ else:
             
             data_str_display = export_df.to_string()
         else:
-            data_str_display = "Pas de données financières disponibles."
+            data_str_display = "No financial data available."
 
         # 3. Bouton de Génération
-        if st.button("🚀 Générer le Rapport (Gemini Flash)", key="btn_full_report"):
-            with st.spinner("Rédaction de la thèse d'investissement en cours (cela peut prendre 30 secondes)..."):
+        if st.button("🚀 Generate Report (Gemini Flash)", key="btn_full_report"):
+            with st.spinner("Drafting investment thesis (this may take 30 seconds)..."):
                 try:
                     # A. Injection des variables
                     final_prompt = prompt_content.format(
@@ -809,13 +815,13 @@ else:
                         )
                         
                         if saved:
-                            st.toast("✅ Rapport archivé en base de données !", icon="💾")
+                            st.toast("✅ Report archived in database!", icon="💾")
                         else:
-                            st.error("⚠️ Erreur lors de l'archivage en base.")
+                            st.error("⚠️ Error archiving to database.")
                     # ----------------------------------------------------
 
                 except Exception as e:
-                    st.error(f"Erreur lors de la génération : {e}")
+                    st.error(f"Error during generation: {e}")
 
         # 4. Affichage du Rapport
         st.markdown("---")
@@ -826,20 +832,20 @@ else:
             if isinstance(report_data, dict) and report_data.get("success") is True:
                 
                 # --- A. METADONNEES TECHNIQUES (Le bandeau que vous vouliez) ---
-                with st.expander("📊 Métriques IA & Coûts", expanded=True):
+                with st.expander("📊 AI Metrics & Costs", expanded=True):
                     m1, m2, m3, m4 = st.columns(4)
-                    m1.metric("Modèle IA", report_data['model_used'])
-                    m2.metric("Clé API utilisée", f"Key #{report_data['key_index']}")
-                    m3.metric("Tokens Entrée", report_data['tokens_input'])
-                    m4.metric("Tokens Sortie", report_data['tokens_output'])
-                    st.caption(f"Total Tokens: **{report_data['tokens_total']}** (Fenêtre de contexte utilisée)")
+                    m1.metric("AI Model", report_data['model_used'])
+                    m2.metric("API Key Used", f"Key #{report_data['key_index']}")
+                    m3.metric("Input Tokens", report_data['tokens_input'])
+                    m4.metric("Output Tokens", report_data['tokens_output'])
+                    st.caption(f"Total Tokens: **{report_data['tokens_total']}** (Context window used)")
 
                 # --- B. LE RAPPORT ---
                 st.markdown(report_data['content'])
                 
                 # --- C. TELECHARGEMENT ---
                 st.download_button(
-                    label="💾 Télécharger le rapport (.md)",
+                    label="💾 Download Report (.md)",
                     data=report_data['content'],
                     file_name=f"Rapport_Investissement_{current_ticker}.md",
                     mime="text/markdown"
@@ -854,7 +860,6 @@ else:
                 st.error(report_data) # Si c'est juste une string d'erreur
             
             # Bouton Effacer
-            if st.button("Effacer le rapport", key="btn_clear_report"):
+            if st.button("Clear Report", key="btn_clear_report"):
                 st.session_state.full_report_result = None
                 st.rerun()
-         

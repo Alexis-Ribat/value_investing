@@ -9,10 +9,16 @@ services:
       - "${HOST_PORT}:8501"
     env_file:
       - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DATABASE_URL=${DATABASE_URL}
+      - FMP_API_KEY=${FMP_API_KEY}
     volumes:
       - ./logs:/app/logs
+      - ./:/app
     depends_on:
-      - db
+      - db  # <--- On garde uniquement 'db' qui est le vrai nom du service défini plus bas
+      # - postgres_dev  <--- LIGNE À SUPPRIMER (C'est elle qui cause l'erreur)
 
   db:
     image: postgres:15
@@ -26,6 +32,13 @@ services:
       - pg_data:/var/lib/postgresql/data
     ports:
       - "${DB_PORT}:5432"
+
+  adminer:
+    image: adminer
+    container_name: adminer_${ENV_NAME}
+    restart: always
+    ports:
+      - "8080:8080"
 
 volumes:
   pg_data:
