@@ -1,14 +1,39 @@
-# --- Sécurité (Mots de passe) ---
+# --- Sécurité (CRITIQUE) ---
 .env
+.env.*
+*.pem
+*.key
 
-# --- Base de données (Lourd et généré automatiquement) ---
+# --- Base de données ---
 postgres_data/
+*.sqlite3
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+# Environnements virtuels (très fréquent)
+venv/
+.venv/
+env/
+
+# --- Rust (CRITIQUE pour votre dossier rust_engine) ---
+# Ignore le dossier de compilation qui est très lourd
+target/
+**/*.rs.bk
 
 # --- Logs et fichiers temporaires ---
 logs/
-__pycache__/
-*.py[cod]
+*.log
+tmp/
 
-# --- Système ---
+# --- IDE et Système ---
 .DS_Store
 Thumbs.db
+.vscode/
+.idea/
+
+# --- Docker ---
+# Si vous générez des builds docker locaux
+dist/
+build/
